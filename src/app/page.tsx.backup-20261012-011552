@@ -1,0 +1,232 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  CalendarDays, LayoutDashboard, Users,
+  Settings, Bell, Plus, CalendarCheck,
+  Clock3, CheckCircle2, XCircle, Menu,
+  ArrowUpRight, Building2
+} from "lucide-react";
+import {
+  Booking, getBookings, cancelBooking as cancelOnServer, industries
+} from "@/lib/bookings";
+
+export default function Dashboard() {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [industry, setIndustry] = useState("Beauty & Wellness");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [date, setDate] = useState("");
+
+  useEffect(() => {
+    const refresh = () => { getBookings().then(setBookings).catch(console.error); };
+    refresh();
+    setDate(new Date().toLocaleDateString("en-CA"));
+
+    const saved = localStorage.getItem("bookflow-industry");
+    if (saved) setIndustry(saved);
+
+    window.addEventListener("bookflow-update", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("bookflow-update", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+
+  const confirmed = bookings.filter(b => b.status === "Confirmed");
+  const cancelled = bookings.filter(b => b.status === "Cancelled");
+  const daily = bookings
+    .filter(b => b.date === date)
+    .sort((a, b) => a.time.localeCompare(b.time));
+
+  const stats = [
+    { label: "Total Bookings", value: bookings.length, icon: CalendarDays, bg: "bg-blue-50", color: "text-blue-600" },
+    { label: "Confirmed", value: confirmed.length, icon: CheckCircle2, bg: "bg-teal-50", color: "text-teal-700" },
+    { label: "Cancelled", value: cancelled.length, icon: XCircle, bg: "bg-red-50", color: "text-red-600" },
+    { label: "Today's Bookings", value: confirmed.filter(b => b.date === new Date().toLocaleDateString("en-CA")).length, icon: Clock3, bg: "bg-amber-50", color: "text-amber-600" },
+  ];
+
+  async function cancelBooking(id: string) {
+    if (!window.confirm("Cancel this reservation?")) return;
+    try {
+      await cancelOnServer(id);
+      setBookings(await getBookings());
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Cancellation failed");
+    }
+  }
+
+  return (
+    <div className="min-h-screen lg:flex">
+      <aside className={`${menuOpen ? "block" : "hidden"} lg:block w-full lg:w-64 shrink-0 bg-white border-r border-slate-200 p-6`}>
+        <Link href="/" className="flex items-center gap-3 text-2xl font-bold">
+          <span className="bg-teal-700 text-white p-2 rounded-xl">
+            <CalendarDays size={24}/>
+          </span>
+          BookFlow
+        </Link>
+
+        <p className="text-xs text-slate-400 mt-2 mb-10">
+          Business Management
+        </p>
+
+        <nav className="space-y-2">
+          {[
+            { name: "Dashboard", icon: LayoutDashboard },
+            { name: "Reservations", icon: CalendarDays },
+            { name: "Customers", icon: Users },
+            { name: "Settings", icon: Settings },
+          ].map(({name, icon: Icon}) => (
+            <div key={name}
+              className={`flex gap-3 items-center px-4 py-3 rounded-xl ${
+                name === "Dashboard"
+                  ? "bg-teal-50 text-teal-800 font-semibold"
+                  : "text-slate-500"
+              }`}>
+              <Icon size={19}/>
+              {name}
+            </div>
+          ))}
+        </nav>
+
+        <div className="mt-10 p-4 bg-slate-50 rounded-xl">
+          <div className="flex gap-2 items-center text-slate-600 text-sm mb-3">
+            <Building2 size={17}/> Business Type
+          </div>
+          <select
+            aria-label="Business type"
+            value={industry}
+            onChange={e => {
+              setIndustry(e.target.value);
+              localStorage.setItem("bookflow-industry", e.target.value);
+            }}
+            className="w-full bg-white border border-slate-200 p-2 rounded-lg text-sm"
+          >
+            {industries.map(i => <option key={i}>{i}</option>)}
+          </select>
+        </div>
+      </aside>
+
+      <main className="flex-1 min-w-0">
+        <header className="bg-white border-b border-slate-200 px-5 md:px-9 py-5 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <button aria-label="Toggle menu"
+              className="lg:hidden"
+              onClick={() => setMenuOpen(!menuOpen)}>
+              <Menu size={23}/>
+            </button>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold">Dashboard</h1>
+              <p className="text-sm text-slate-500">Welcome back to BookFlow</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <Bell size={20} className="text-slate-500"/>
+            <div className="bg-teal-100 text-teal-800 w-9 h-9 rounded-full flex items-center justify-center font-bold">
+              B
+            </div>
+          </div>
+        </header>
+
+        <div className="p-5 md:p-9 max-w-7xl mx-auto">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+            <div>
+              <h2 className="text-2xl font-bold">Overview</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Manage your reservations and business activity.
+              </p>
+            </div>
+            <Link href="/book"
+              className="bg-teal-700 hover:bg-teal-800 text-white px-5 py-3 rounded-xl flex items-center gap-2 font-semibold">
+              <Plus size={18}/> New Booking
+            </Link>
+          </div>
+
+          <section className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+            {stats.map(({label,value,icon:Icon,bg,color}) => (
+              <div key={label} className="bg-white rounded-2xl border border-slate-200 p-5">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bg} ${color} mb-4`}>
+                  <Icon size={20}/>
+                </div>
+                <p className="text-sm text-slate-500">{label}</p>
+                <p className="text-3xl font-bold mt-2">{value}</p>
+              </div>
+            ))}
+          </section>
+
+          <section className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold">Reservations</h3>
+                <p className="text-sm text-slate-500">View and manage bookings by date.</p>
+              </div>
+              <input type="date" aria-label="Reservation date"
+                value={date} onChange={e => setDate(e.target.value)}
+                className="border border-slate-200 rounded-xl px-4 py-2 text-sm"/>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[650px] text-sm text-left">
+                <thead className="bg-slate-50 text-slate-500">
+                  <tr>
+                    {["Customer","Service","Time","Status","Action"].map(h =>
+                      <th key={h} className="px-6 py-4 font-medium">{h}</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {daily.map(b => (
+                    <tr key={b.id} className="border-t border-slate-100">
+                      <td className="px-6 py-4">
+                        <p className="font-semibold">{b.customer}</p>
+                        <p className="text-slate-400 text-xs">{b.email}</p>
+                      </td>
+                      <td className="px-6 py-4">{b.service}</td>
+                      <td className="px-6 py-4">{b.time}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          b.status === "Confirmed"
+                            ? "bg-green-50 text-green-700"
+                            : "bg-red-50 text-red-700"
+                        }`}>{b.status}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {b.status === "Confirmed" && (
+                          <button onClick={() => cancelBooking(b.id)}
+                            className="text-red-600 hover:underline">
+                            Cancel
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {daily.length === 0 && (
+                <div className="py-16 text-center text-slate-400">
+                  <CalendarCheck size={32} className="mx-auto mb-3"/>
+                  No reservations for this date.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="mt-6 bg-teal-50 border border-teal-100 rounded-2xl p-6 flex flex-wrap justify-between items-center gap-4">
+            <div>
+              <h3 className="font-bold text-teal-900">Customer Booking Portal</h3>
+              <p className="text-sm text-teal-800 mt-1">
+                Preview the public booking experience.
+              </p>
+            </div>
+            <Link href="/book"
+              className="bg-white border border-teal-200 text-teal-800 px-4 py-3 rounded-xl font-semibold flex items-center gap-2">
+              Open Booking Page <ArrowUpRight size={17}/>
+            </Link>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}

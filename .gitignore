@@ -39,3 +39,36 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local secrets and runtime data
+.env
+.env.*
+!.env.example
+.bookflow-data/
+.bookflow-backups/
+*.db
+*.sqlite
+*.sqlite3
+node_modules/
+.next/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and build
+node_modules/
+.next/
+dist/
+build/
+
+# Local data
+.bookflow-data/
+.bookflow-backups/
+*.db
+*.sqlite
+*.sqlite3
+
+# System
+.DS_Store
